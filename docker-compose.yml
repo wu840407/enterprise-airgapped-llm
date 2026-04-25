@@ -1,0 +1,163 @@
+# =============================================================================
+# Enterprise Air-Gapped LLM Stack
+# Reference deployment for Dell R740 + 2x NVIDIA Quadro RTX 6000 (Turing)
+# =============================================================================
+# Service topology:
+#   nginx (TLS termination, public on 443) →
+#     openwebui (multi-user UI, AD-integrated) →
+#       vllm (OpenAI-compatible inference, tensor-parallel across 2 GPUs)
+#   Persistent state: postgres (conversations) + redis (sessions)
+#
+# All inter-service traffic flows on internal Docker bridge networks.
+# Only nginx binds to host ports.
+# =============================================================================
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true   # no outbound internet — air-gap discipline at the network layer
+
+services:
+  # ---------------------------------------------------------------------------
+  # vLLM — high-throughput inference engine
+  # Model: Qwen3-Coder-30B-A3B-Instruct (AWQ-quantized, MoE 30B/3B-active)
+  # ---------------------------------------------------------------------------
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: vllm
+    runtime: nvidia
+    ipc: host                    # required for vLLM tensor parallel shared memory
+    networks: [backend]
+    environment:
+      - CUDA_VISIBLE_DEVICES=0,1
+      - HF_HUB_OFFLINE=1         # enforce no-network model loading
+      - VLLM_WORKER_MULTIPROC_METHOD=spawn
+    volumes:
+      - /opt/ai/models:/models:ro
+    command:
+      # Positional model path — vLLM auto-detects the compressed-tensors AWQ format.
+      # Do NOT pass --quantization explicitly; it conflicts with config.json.
+      - "/models/Qwen3-Coder-30B-A3B-Instruct-AWQ"
+      - "--served-model-name"
+      - "qwen3-coder"
+      # Tensor parallelism distributes attention heads across both GPUs.
+      - "--tensor-parallel-size"
+      - "2"
+      # FP16 because Turing (sm_75) has no BF16 hardware support.
+      - "--dtype"
+      - "float16"
+      # 16K context fits comfortably with 90% VRAM utilization on 2x 24GB.
+      - "--max-model-len"
+      - "16384"
+      - "--gpu-memory-utilization"
+      - "0.90"
+      # CUDA graphs are unstable on Turing under tensor parallel — eager mode trades
+      # ~5% throughput for production reliability.
+      - "--enforce-eager"
+      - "--trust-remote-code"
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 15
+      start_period: 600s   # cold model load on RAID 10 takes ~30s; wide margin
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — conversation history, user accounts, audit trail
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    networks: [backend]
+    environment:
+      POSTGRES_USER: openwebui
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?PG_PASSWORD must be set in .env}
+      POSTGRES_DB: openwebui
+    volumes:
+      - /opt/ai/data/pg:/var/lib/postgresql/data
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openwebui"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis — session cache, multi-worker coordination
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    networks: [backend]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}", "--save", "60", "1"]
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep -q PONG"]
+      interval: 10s
+
+  # ---------------------------------------------------------------------------
+  # Open WebUI — multi-user chat frontend, AD-integrated, RBAC-enabled
+  # ---------------------------------------------------------------------------
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: openwebui
+    networks: [frontend, backend]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vllm:
+        condition: service_healthy
+    environment:
+      # Backend wiring
+      OPENAI_API_BASE_URL: http://vllm:8000/v1
+      OPENAI_API_KEY: dummy-not-used
+      DATABASE_URL: postgresql://openwebui:${PG_PASSWORD}@postgres:5432/openwebui
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET:?WEBUI_SECRET must be set in .env}
+
+      # Authentication — initial bootstrap allows local signup; flip ENABLE_LDAP
+      # to "true" and disable signup once AD/LDAPS integration is validated.
+      ENABLE_LDAP: "false"
+      ENABLE_SIGNUP: "true"
+      DEFAULT_USER_ROLE: "pending"   # admin must approve every new user
+      WEBUI_AUTH: "true"
+      WEBUI_NAME: ${WEBUI_NAME:-Enterprise AI Assistant}
+
+      # Hardening
+      WEBUI_SESSION_COOKIE_SECURE: "true"
+      WEBUI_SESSION_COOKIE_SAME_SITE: "strict"
+      USER_PERMISSIONS_CHAT_DELETION: "false"   # preserve audit trail
+    volumes:
+      - /opt/ai/data/owui:/app/backend/data
+    restart: unless-stopped
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Nginx — TLS termination, the only host-facing service
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:stable
+    container_name: nginx
+    networks: [frontend]
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - /opt/ai/compose/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /opt/ai/compose/certs:/etc/nginx/certs:ro
+    depends_on:
+      - openwebui
+    restart: unless-stopped
+    logging: *default-logging

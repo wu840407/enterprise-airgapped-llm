@@ -1,0 +1,20 @@
+# Secrets
+.env
+.pg_password
+.webui_secret
+*.key
+*.crt
+*.pem
+
+# Local data
+certs/
+data/
+models/
+backup/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
