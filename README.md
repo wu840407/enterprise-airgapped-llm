@@ -1,5 +1,12 @@
 # Enterprise Air-Gapped LLM Stack
 
+![License](https://img.shields.io/badge/license-MIT-green)
+![vLLM](https://img.shields.io/badge/inference-vLLM-blue)
+![GPU](https://img.shields.io/badge/GPU-2×_Turing_sm75-76B900)
+![Status](https://img.shields.io/badge/status-production-brightgreen)
+
+**TL;DR** — 30B MoE coding LLM · 2018-era GPUs · 100% offline · 80–120 tok/s · AD/LDAPS auth · field-tested, not a tutorial.
+
 > **Production-grade self-hosted Large Language Model platform engineered for air-gapped, regulated, and security-critical environments.**
 > Built on legacy enterprise hardware (Dell R740 + dual Turing-class GPUs) with no cloud dependencies, no telemetry, and no external API calls. Delivers a state-of-the-art coding assistant comparable to mid-tier proprietary services — entirely on-premises.
 
@@ -18,6 +25,33 @@ Most "self-hosted LLM" tutorials assume Ampere or Hopper-class GPUs, public inte
 This repository is the reference architecture for that scenario. It is the result of an end-to-end production deployment, not a thought experiment.
 
 ---
+## System Architecture
+
+​```mermaid
+flowchart TB
+    B["🖥️ Internal users<br/>(AD group-restricted)"]
+    AD[("Active Directory<br/>LDAPS :636")]
+    subgraph Host["Dell R740 · Ubuntu 24.04 · air-gapped VLAN"]
+        N["Nginx<br/>TLS 1.2/1.3 · rate-limit · token streaming"]
+        subgraph Net["Docker internal network — no egress"]
+            W["Open WebUI<br/>multi-user · RBAC"]
+            V["vLLM<br/>Qwen3-Coder-30B-A3B (AWQ)<br/>tensor parallel ×2 · fp16 · FlashInfer"]
+            P[("PostgreSQL 16<br/>history · audit")]
+            R[("Redis 7<br/>sessions")]
+        end
+        subgraph HW["Hardware"]
+            G["2× Quadro RTX 6000<br/>Turing sm_75 · 24 GB each"]
+            S["RAID10 + LVM · 2.25 TB<br/>~2.5 GB/s seq read"]
+        end
+    end
+    B -->|HTTPS| N --> W
+    W <--> V
+    W --> P
+    W --> R
+    W -.->|memberOf filter| AD
+    V === G
+    V --- S
+​```
 
 ## Architectural Highlights
 
@@ -213,5 +247,7 @@ The model weights, vLLM, Open WebUI, and all referenced components retain their 
 - The Open WebUI maintainers for the enterprise authentication features that make this stack viable in regulated environments
 
 ---
+
+Maintained by [ChengRung Wu](https://wu840407.github.io) — questions and issues welcome.
 
 *If you're building something similar in a regulated environment and have questions, issues are welcome.*
