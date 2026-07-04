@@ -27,7 +27,7 @@ This repository is the reference architecture for that scenario. It is the resul
 ---
 ## System Architecture
 
-​mermaid
+```mermaid
 flowchart TB
     B["🖥️ Internal users<br/>(AD group-restricted)"]
     AD[("Active Directory<br/>LDAPS :636")]
@@ -51,6 +51,8 @@ flowchart TB
     W -.->|memberOf filter| AD
     V === G
     V --- S
+```
+
 ---
 
 ## Architectural Highlights
