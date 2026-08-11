@@ -193,6 +193,18 @@ Browse to `https://<host-ip>/` and complete first-admin setup.
 
 ---
 
+## Demo
+
+Multi-user chat served entirely offline — a 30B MoE coding model answering a real question,
+no cloud API involved:
+
+![Open WebUI chat](docs/img/webui-chat-demo.png)
+
+Retrieval settings for the on-premises document pipeline (chunking, local embedding model,
+reranking) — everything runs inside the air-gapped network:
+
+![Retrieval settings](docs/img/webui-rag-settings.png)
+
 ## Performance Profile
 
 Measured on the reference hardware (2× Quadro RTX 6000 Passive, Xeon Gold 6248R, 384 GB DDR4):
