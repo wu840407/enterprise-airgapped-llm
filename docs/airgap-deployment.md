@@ -89,13 +89,13 @@ network:
     eno1:
       dhcp4: false
       addresses:
-        - 192.168.1.186/24
+        - 10.0.0.10/24
       routes:
         - to: default
-          via: 192.168.1.254
+          via: 10.0.0.1
       nameservers:
         addresses:
-          - 192.168.1.254       # internal DNS
+          - 10.0.0.1       # internal DNS
 ```
 
 ```bash
@@ -112,7 +112,7 @@ Without correct time, AD/Kerberos authentication fails silently with cryptic err
 ```bash
 sudo nano /etc/systemd/timesyncd.conf
 # [Time]
-# NTP=ntp.corp.local 192.168.1.x
+# NTP=ntp.corp.local 10.0.0.x
 
 sudo systemctl restart systemd-timesyncd
 timedatectl status
@@ -135,7 +135,7 @@ curl -m 5 https://huggingface.co  || echo "OK, blocked as expected"
 curl -m 5 https://google.com      || echo "OK, blocked as expected"
 
 # Should succeed — internal services reachable
-ping -c2 192.168.1.254
+ping -c2 10.0.0.1
 nslookup dc01.corp.local
 ```
 
