@@ -1,0 +1,171 @@
+{
+  "meta": {
+    "engine": "trtllm",
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "vram_total_mib": "24576",
+    "driver": "610.62",
+    "gpu_clock_locked": "[Requested functionality has been deprecated]",
+    "date": "2026-08-20 10:46:28+0800",
+    "model_path": "/home/wu840407/models/qwen3-8b",
+    "torch": "2.13.0+cu130"
+  },
+  "config": {
+    "output_len": 256,
+    "repeats": 5,
+    "warmup": 3
+  },
+  "latency_sweep": [
+    {
+      "ttft_ms": {
+        "p50": 65.16,
+        "p95": 65.72
+      },
+      "tpot_ms": {
+        "p50": 21.57,
+        "p95": 22.44
+      },
+      "throughput_tok_s": 45.92,
+      "vram_peak_mib": 22770,
+      "samples": 5,
+      "input_len": 128,
+      "batch": 1
+    },
+    {
+      "ttft_ms": {
+        "p50": 150.78,
+        "p95": 160.47
+      },
+      "tpot_ms": {
+        "p50": 21.56,
+        "p95": 21.93
+      },
+      "throughput_tok_s": 45.21,
+      "vram_peak_mib": 22703,
+      "samples": 5,
+      "input_len": 512,
+      "batch": 1
+    },
+    {
+      "ttft_ms": {
+        "p50": 500.8,
+        "p95": 807.17
+      },
+      "tpot_ms": {
+        "p50": 24.26,
+        "p95": 30.91
+      },
+      "throughput_tok_s": 38.22,
+      "vram_peak_mib": 22731,
+      "samples": 5,
+      "input_len": 2048,
+      "batch": 1
+    },
+    {
+      "ttft_ms": {
+        "p50": 990.78,
+        "p95": 1059.16
+      },
+      "tpot_ms": {
+        "p50": 22.86,
+        "p95": 28.14
+      },
+      "throughput_tok_s": 37.15,
+      "vram_peak_mib": 22724,
+      "samples": 5,
+      "input_len": 4096,
+      "batch": 1
+    }
+  ],
+  "throughput_sweep": [
+    {
+      "ttft_ms": {
+        "p50": 147.93,
+        "p95": 149.51
+      },
+      "tpot_ms": {
+        "p50": 21.04,
+        "p95": 21.09
+      },
+      "throughput_tok_s": 46.34,
+      "vram_peak_mib": 22596,
+      "samples": 5,
+      "input_len": 512,
+      "batch": 1
+    },
+    {
+      "ttft_ms": {
+        "p50": 217.38,
+        "p95": 289.88
+      },
+      "tpot_ms": {
+        "p50": 21.46,
+        "p95": 21.71
+      },
+      "throughput_tok_s": 89.66,
+      "vram_peak_mib": 22596,
+      "samples": 10,
+      "input_len": 512,
+      "batch": 2
+    },
+    {
+      "ttft_ms": {
+        "p50": 507.44,
+        "p95": 512.43
+      },
+      "tpot_ms": {
+        "p50": 21.38,
+        "p95": 22.74
+      },
+      "throughput_tok_s": 171.42,
+      "vram_peak_mib": 22596,
+      "samples": 20,
+      "input_len": 512,
+      "batch": 4
+    },
+    {
+      "ttft_ms": {
+        "p50": 884.63,
+        "p95": 930.99
+      },
+      "tpot_ms": {
+        "p50": 21.43,
+        "p95": 24.82
+      },
+      "throughput_tok_s": 321.58,
+      "vram_peak_mib": 22596,
+      "samples": 40,
+      "input_len": 512,
+      "batch": 8
+    },
+    {
+      "ttft_ms": {
+        "p50": 1679.15,
+        "p95": 1708.18
+      },
+      "tpot_ms": {
+        "p50": 23.54,
+        "p95": 29.43
+      },
+      "throughput_tok_s": 529.88,
+      "vram_peak_mib": 22594,
+      "samples": 80,
+      "input_len": 512,
+      "batch": 16
+    },
+    {
+      "ttft_ms": {
+        "p50": 2224.78,
+        "p95": 3319.55
+      },
+      "tpot_ms": {
+        "p50": 31.1,
+        "p95": 37.02
+      },
+      "throughput_tok_s": 801.99,
+      "vram_peak_mib": 22594,
+      "samples": 160,
+      "input_len": 512,
+      "batch": 32
+    }
+  ]
+}
