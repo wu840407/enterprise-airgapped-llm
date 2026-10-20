@@ -5,10 +5,10 @@
 ![GPU](https://img.shields.io/badge/GPU-2×_Turing_sm75-76B900)
 ![Status](https://img.shields.io/badge/status-production-brightgreen)
 
-**TL;DR** — 30B MoE coding LLM · 2018-era GPUs · 100% offline · 80–120 tok/s · AD/LDAPS auth · field-tested, not a tutorial.
+**TL;DR** — 30B MoE coding LLM · 2× Quadro RTX 6000 (Turing) · 100% offline · 80–120 tok/s · AD/LDAPS auth · field-tested, not a tutorial.
 
 > **Production-grade self-hosted Large Language Model platform engineered for air-gapped, regulated, and security-critical environments.**
-> Built on legacy enterprise hardware (Dell R740 + dual Turing-class GPUs) with no cloud dependencies, no telemetry, and no external API calls. Delivers a state-of-the-art coding assistant comparable to mid-tier proprietary services — entirely on-premises.
+> Built on existing enterprise hardware (Dell R740 + dual Turing-class GPUs) with no cloud dependencies, no telemetry, and no external API calls. Delivers a state-of-the-art coding assistant comparable to mid-tier proprietary services — entirely on-premises.
 
 ---
 
@@ -59,7 +59,7 @@ flowchart TB
 
 ### 1. Turing-Era GPU Constraint Engineering
 
-The deployment target is **2× NVIDIA Quadro RTX 6000 Passive (Turing, sm_75, 24 GB each)** — a 2018 architecture that predates BF16, FP8, and many modern attention kernels.
+The deployment target is **2× NVIDIA Quadro RTX 6000 Passive (Turing, sm_75, 24 GB each)** — a generation with no BF16 or FP8 support and no FlashAttention-2.
 
 Most modern LLM stacks silently assume Ampere+ features. We don't have that luxury. Concrete decisions forced by the hardware:
 
