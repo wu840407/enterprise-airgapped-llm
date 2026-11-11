@@ -212,7 +212,7 @@ reranking) — everything runs inside the air-gapped network:
 The platform has since moved through two model changes (see [`docs/model-migration.md`](docs/model-migration.md)).
 It now serves a 27B dense model in 4-bit (`compressed-tensors`, FP16 compute, about 20 GB on disk) with
 vLLM 0.19.1, tensor parallel across both cards, `--enforce-eager`, and at most two requests at a time.
-The two cards sit on different CPU sockets (PCIe Gen3 x16, no NVLink); the CPUs are older 2.3 GHz Xeons.
+The two cards sit on different CPU sockets (PCIe Gen3 x16, no NVLink); the CPUs are Xeon Gold 5118 (2.3 GHz).
 
 Method: `vllm bench serve` with random prompts (so nothing hits the prefix cache), 512 tokens in,
 256 tokens out, 30 requests.
@@ -236,7 +236,8 @@ traffic between the two CPU sockets. An A/B test with CUDA graphs on and off is 
 These numbers were recorded when the first version shipped. The measurement method was not kept and that
 model is no longer deployed, so they cannot be re-checked.
 
-Reference hardware as documented then: 2× Quadro RTX 6000 Passive, Xeon Gold 6248R, 384 GB DDR4.
+Same hardware: 2× Quadro RTX 6000 Passive, Xeon Gold 5118, 384 GB DDR4. (Earlier versions of this
+README listed the CPU as Xeon Gold 6248R; that was wrong.)
 
 | Metric | Value |
 |---|---|
