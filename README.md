@@ -5,10 +5,10 @@
 ![GPU](https://img.shields.io/badge/GPU-2×_Turing_sm75-76B900)
 ![Status](https://img.shields.io/badge/status-production-brightgreen)
 
-**TL;DR** — 30B MoE coding LLM · 2× Quadro RTX 6000 (Turing) · 100% offline · 80–120 tok/s · AD/LDAPS auth · field-tested, not a tutorial.
+**TL;DR** — 30B MoE coding LLM · 2× Quadro RTX 6000 (Turing) · 100% offline · AD/LDAPS auth · field-tested, not a tutorial.
 
 > **Production-grade self-hosted Large Language Model platform engineered for air-gapped, regulated, and security-critical environments.**
-> Built on existing enterprise hardware (Dell R740 + dual Turing-class GPUs) with no cloud dependencies, no telemetry, and no external API calls. Delivers a state-of-the-art coding assistant comparable to mid-tier proprietary services — entirely on-premises.
+> Built on existing enterprise hardware (Dell R740 + dual Turing-class GPUs) with no cloud dependencies, no telemetry, and no external API calls. Delivers a coding assistant that runs entirely on-premises.
 
 ---
 
@@ -68,10 +68,10 @@ Most modern LLM stacks silently assume Ampere+ features. We don't have that luxu
 | No BF16 support | Force `--dtype float16` | Compatible with Turing ALUs; must validate AWQ kernels don't underflow |
 | No FP8 quantization | Use AWQ 4-bit (`compressed-tensors`) | Native Turing INT4 throughput; ~4× memory reduction |
 | Flash Attention 2 unstable | Auto-fallback to **FlashInfer + Marlin** kernels | vLLM detects sm_75 and routes correctly |
-| CUDA Graphs partially broken | `--enforce-eager` | Trades minor latency for stability — the right call in production |
+| CUDA Graphs partially broken | `--enforce-eager` | Trades latency for stability; the size of that cost has not been measured yet (see [Performance Profile](#performance-profile)) |
 | 48 GB total VRAM ceiling | Tensor parallel across both GPUs | Fits 30B-class model with 16K context |
 
-**Net result:** A 30B-parameter coding model loads in **~31 seconds** and serves at production latency on hardware that's nominally 4 generations behind the curve.
+**Net result:** A 30B-parameter coding model fits and serves on hardware that's nominally 4 generations behind the curve.
 
 ### 2. Tensor Parallelism on a Constrained Budget
 
@@ -81,7 +81,7 @@ vLLM's tensor parallelism requires `tensor_parallel_size` to evenly divide the m
 - **Dense 32B INT4:** ~19 GB → fits on a single GPU, but throughput-limited
 - **MoE 30B-A3B INT4:** ~17 GB weights, 3 B activated parameters per token → **chosen**
 
-The MoE choice (Qwen3-Coder-30B-A3B-Instruct) is the architectural inflection point. It activates only 10% of parameters per forward pass while preserving the quality of a 30B dense model — a pattern that maps unusually well to bandwidth-limited Turing memory subsystems and yields **decoder throughput that exceeds dense 14B models** on identical hardware.
+The MoE choice (Qwen3-Coder-30B-A3B-Instruct) is the architectural inflection point. It activates only 10% of parameters per forward pass while preserving the quality of a 30B dense model — in theory a good match for bandwidth-limited Turing memory, because each token reads about a tenth of the weights. (Later measurement on this hardware showed that memory traffic is not the main cost; see [Performance Profile](#performance-profile).)
 
 ### 3. Quantization Format Conflict Resolution
 
@@ -207,7 +207,36 @@ reranking) — everything runs inside the air-gapped network:
 
 ## Performance Profile
 
-Measured on the reference hardware (2× Quadro RTX 6000 Passive, Xeon Gold 6248R, 384 GB DDR4):
+### Current deployment — measured 2026-11
+
+The platform has since moved through two model changes (see [`docs/model-migration.md`](docs/model-migration.md)).
+It now serves a 27B dense model in 4-bit (`compressed-tensors`, FP16 compute, about 20 GB on disk) with
+vLLM 0.19.1, tensor parallel across both cards, `--enforce-eager`, and at most two requests at a time.
+The two cards sit on different CPU sockets (PCIe Gen3 x16, no NVLink); the CPUs are older 2.3 GHz Xeons.
+
+Method: `vllm bench serve` with random prompts (so nothing hits the prefix cache), 512 tokens in,
+256 tokens out, 30 requests.
+
+| Metric | Value |
+|---|---|
+| Time per output token, one request at a time | 90.9 ms median (p99 91.5 ms), about 11 tokens/s |
+| Time to first token, 512-token prompt | 0.54 s |
+| Time to first token, 4,096-token prompt | 4.06 s |
+| Two requests at once | 98.3 ms per token (+8%), 1.85× total throughput |
+| Cold start (load and warm-up) | about 9 min |
+| KV-cache capacity | about 240,000 tokens |
+
+**Open question.** Reading the whole 20 GB model once per token would take only about 15 ms per card
+(10 GB at 672 GB/s), so more than 80% of each token's time is overhead rather than memory traffic.
+The candidates are kernel-launch overhead in eager mode, the 4-bit kernels on Turing, and all-reduce
+traffic between the two CPU sockets. An A/B test with CUDA graphs on and off is the next measurement.
+
+### First version (30B MoE, 2025-04) — as recorded at the time
+
+These numbers were recorded when the first version shipped. The measurement method was not kept and that
+model is no longer deployed, so they cannot be re-checked.
+
+Reference hardware as documented then: 2× Quadro RTX 6000 Passive, Xeon Gold 6248R, 384 GB DDR4.
 
 | Metric | Value |
 |---|---|
@@ -217,8 +246,6 @@ Measured on the reference hardware (2× Quadro RTX 6000 Passive, Xeon Gold 6248R
 | Time to first token (warm) | < 500 ms |
 | Maximum context window | 16,384 tokens |
 | GPU memory utilization | 90 % per card |
-
-For most internal coding-assistant workloads (10–30 active users at peak), the bottleneck is human reading speed rather than the inference engine.
 
 ---
 
