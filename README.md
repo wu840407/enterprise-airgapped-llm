@@ -1,5 +1,6 @@
 # Enterprise Air-Gapped LLM Stack
 
+[![checks](https://github.com/wu840407/enterprise-airgapped-llm/actions/workflows/checks.yml/badge.svg)](https://github.com/wu840407/enterprise-airgapped-llm/actions/workflows/checks.yml)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![vLLM](https://img.shields.io/badge/inference-vLLM-blue)
 ![GPU](https://img.shields.io/badge/GPU-2×_Turing_sm75-76B900)
