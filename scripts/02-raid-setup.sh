@@ -19,6 +19,8 @@
 set -euo pipefail
 
 DISKS=(b c d e f g)
+MEMBERS=()
+for d in "${DISKS[@]}"; do MEMBERS+=("/dev/sd${d}"); done
 RAID_DEV=/dev/md0
 VG_NAME=vg_data
 
@@ -48,7 +50,7 @@ sudo mdadm --create "$RAID_DEV" \
   --layout=n2 \
   --chunk=256 \
   --name=data \
-  $(for d in "${DISKS[@]}"; do echo -n "/dev/sd${d} "; done)
+  "${MEMBERS[@]}"
 
 echo "==> [3/6] Persisting mdadm config and rebuilding initramfs"
 sudo mdadm --detail --scan | sudo tee /etc/mdadm/mdadm.conf

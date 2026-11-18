@@ -1,0 +1,36 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell scripts
+        run: shellcheck --severity=warning scripts/*.sh
+
+      - name: Compose file resolves with the example environment
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+
+      - name: Nginx configuration
+        run: |
+          mkdir -p ci-certs
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=ci" \
+            -keyout ci-certs/server.key -out ci-certs/server.crt
+          docker run --rm --add-host openwebui:127.0.0.1 \
+            -v "$PWD/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            -v "$PWD/ci-certs:/etc/nginx/certs:ro" \
+            nginx:stable nginx -t
+
+      - name: Relative links in the docs
+        run: python3 .github/scripts/check_links.py
